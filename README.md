@@ -4,7 +4,6 @@
   <img height="280" alt="deckmaster-logo" src="https://github.com/user-attachments/assets/1037c197-df86-4b0c-a46e-4ecb53fd5fe7" />
 </p>
 
-<h1 align="center">DeckMaster</h1>
 <p align="center">
   <img alt="Local First" src="https://img.shields.io/badge/local--first-yes-2ea44f?style=flat-square">
   <img alt="Rust" src="https://img.shields.io/badge/Rust-core--engine-f97316?style=flat-square">
@@ -19,18 +18,9 @@
 
 It gives slide decks a canonical object model that can move between PPTX, JSON, CLI operations, and AI agents without making the zipped PPTX package the source of truth.
 
-```text
-PPTX
-  ↕
-DeckMaster Model / JSON
-  ↕
-CLI / AI Agent
-  ↕
-PPTX
-```
 
 <p align="center">
-  <img width="1536" alt="Marketing" src="https://github.com/user-attachments/assets/d103cbe3-af25-497d-b401-972800208ccb" />
+  <img width="1535" alt="Deck" src="https://github.com/user-attachments/assets/c00dc708-f523-4b46-a75d-9738e4912bc3" />
 </p>
 
 ---
