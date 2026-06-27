@@ -1,0 +1,99 @@
+{
+  "id": "c3739bdb-b3d5-4172-ad61-6cceb88884d8",
+  "metadata": {
+    "title": "My First Deck",
+    "author": null
+  },
+  "theme": {
+    "name": "Default",
+    "background": {
+      "value": "#FFFFFF"
+    },
+    "foreground": {
+      "value": "#111111"
+    }
+  },
+  "assets": [],
+  "slides": [
+    {
+      "id": "1febfc31-0272-41a7-ac69-c5dd08a040dc",
+      "name": "Slide 1",
+      "size": {
+        "width": 13.333,
+        "height": 7.5
+      },
+      "elements": [
+        {
+          "type": "Text",
+          "id": "cd6e1744-b59b-492d-9ff8-627110ee6dfe",
+          "bounds": {
+            "x": 100.0,
+            "y": 100.0,
+            "width": 500.0,
+            "height": 100.0
+          },
+          "text": "Welcome to Deckmaster",
+          "font_size": 24.0,
+          "color": {
+            "value": "#111111"
+          }
+        }
+      ]
+    },
+    {
+      "id": "df827dc8-a9dd-4ef5-9d56-b88a3a8a3d80",
+      "name": "Results",
+      "size": {
+        "width": 13.333,
+        "height": 7.5
+      },
+      "elements": [
+        {
+          "type": "Text",
+          "id": "b0b15b3a-0098-440b-95c7-72903b855eed",
+          "bounds": {
+            "x": 100.0,
+            "y": 100.0,
+            "width": 500.0,
+            "height": 100.0
+          },
+          "text": "Slide 2",
+          "font_size": 24.0,
+          "color": {
+            "value": "#111111"
+          }
+        },
+        {
+          "type": "Text",
+          "id": "12474006-609b-4d54-acdc-aa1bb1f15117",
+          "bounds": {
+            "x": 100.0,
+            "y": 200.0,
+            "width": 600.0,
+            "height": 100.0
+          },
+          "text": "Revenue increased 24%",
+          "font_size": 24.0,
+          "color": {
+            "value": "#111111"
+          }
+        },
+        {
+          "type": "Text",
+          "id": "4dd3aec3-ef06-4c3c-9111-5be267be9e6e",
+          "bounds": {
+            "x": 100.0,
+            "y": 200.0,
+            "width": 600.0,
+            "height": 100.0
+          },
+          "text": "Revenue increased 24%",
+          "font_size": 24.0,
+          "color": {
+            "value": "#111111"
+          }
+        }
+      ]
+    }
+  ]
+}

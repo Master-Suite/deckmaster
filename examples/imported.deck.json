@@ -1,0 +1,59 @@
+{
+  "id": "fd1bcba8-32f6-4d65-90aa-312e5de526d3",
+  "metadata": {
+    "title": "Imported Presentation",
+    "author": null
+  },
+  "theme": {
+    "name": "Default",
+    "background": {
+      "value": "#FFFFFF"
+    },
+    "foreground": {
+      "value": "#111111"
+    }
+  },
+  "assets": [],
+  "slides": [
+    {
+      "id": "dfcf7a7c-444d-43df-abc2-cc933f995ebe",
+      "name": "Imported Slide",
+      "size": {
+        "width": 13.333,
+        "height": 7.5
+      },
+      "elements": [
+        {
+          "type": "Text",
+          "id": "33effcb3-c1f2-46b8-b590-8d1895ee1af3",
+          "bounds": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 100.0,
+            "height": 30.0
+          },
+          "text": "Hello World",
+          "font_size": 18.0,
+          "color": {
+            "value": "#000000"
+          }
+        },
+        {
+          "type": "Text",
+          "id": "38327ae0-81d8-494e-ad28-6e40ecb822a7",
+          "bounds": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 100.0,
+            "height": 30.0
+          },
+          "text": "Dr. Andrew Garcia",
+          "font_size": 18.0,
+          "color": {
+            "value": "#000000"
+          }
+        }
+      ]
+    }
+  ]
+}

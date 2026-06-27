@@ -1,0 +1,44 @@
+{
+  "id": "00000000-0000-0000-0000-000000000001",
+  "metadata": {
+    "title": "Quarterly Results",
+    "author": "Andrew"
+  },
+  "theme": {
+    "name": "Default",
+    "background": {
+      "value": "#FFFFFF"
+    },
+    "foreground": {
+      "value": "#111111"
+    }
+  },
+  "assets": [],
+  "slides": [
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "Results",
+      "size": {
+        "width": 13.333,
+        "height": 7.5
+      },
+      "elements": [
+        {
+          "type": "Text",
+          "id": "00000000-0000-0000-0000-000000000003",
+          "bounds": {
+            "x": 100.0,
+            "y": 200.0,
+            "width": 500.0,
+            "height": 80.0
+          },
+          "text": "Revenue increased 24%",
+          "font_size": 32.0,
+          "color": {
+            "value": "#111111"
+          }
+        }
+      ]
+    }
+  ]
+}
