@@ -1,0 +1,11 @@
+[package]
+name = "deckmaster-cli"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "=4.5.4", features = ["derive"] }
+deckmaster-core = { path = "../deckmaster-core" }
+deckmaster-pptx = { path = "../deckmaster-pptx" }
+uuid = { version = "1", features = ["v4"] }
+serde_json = "1"
