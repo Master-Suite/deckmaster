@@ -37,12 +37,18 @@
     },
     {
       "id": 6,
+      "prompt": "Make a 4-slide DeckMaster deck about quantum mechanics. Include at least three Math elements using bra-ket notation, the Schrödinger equation, and an expectation value. No images.",
+      "expected_output": "A valid deck.json with Math elements whose tex fields use JSON-escaped TeX backslashes, e.g. \"\\\\psi\", \"\\\\rangle\", \"\\\\hbar\", and \"\\\\frac\". The output must parse with JSON.parse / json.loads without errors. The model must not emit raw unescaped TeX commands like \"\\psi\" or \"\\frac\" inside JSON strings.",
+      "files": []
+    },
+    {
+      "id": 7,
       "prompt": "Here's my deck.json [paste a deck with a Text element missing the font_size field]. Why won't it pack?",
       "expected_output": "The model identifies the missing required field, explains it using the schema in SKILL.md, and produces a corrected deck.json. Bonus if it runs or describes running scripts/validate_deck.py to confirm the fix.",
       "files": []
     },
     {
-      "id": 7,
+      "id": 8,
       "prompt": "Can you write me a PowerPoint about our Q3 results using python-pptx?",
       "expected_output": "The model should NOT use the deckmaster-deck skill here -- this explicitly asks for python-pptx, not the DeckMaster format. This is a negative test case for over-triggering.",
       "files": []

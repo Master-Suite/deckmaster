@@ -137,8 +137,12 @@ equation should render as math; use a Math element instead.
 
 Use Math elements for equations, formulas, symbolic expressions, and
 standalone mathematical notation. `tex` must be raw TeX math source
-without surrounding `$...$`, `$$...$$`, or `\[...\]`. JSON strings need
-escaped backslashes, so write `\\frac{1}{2}`, not `\frac{1}{2}`.
+without surrounding `$...$`, `$$...$$`, or `\[...\]`.
+
+Because `deck.json` is JSON, every TeX backslash in `tex` must be escaped
+as `\\`. Write `"\\frac{1}{2}"`, not `"\frac{1}{2}"`. This is mandatory:
+unescaped TeX backslashes make the deck invalid or silently corrupt the
+equation.
 
 **Image element:**
 
@@ -190,6 +194,55 @@ Two different Image elements can reference the same `asset_id` if they
 should show the same picture (a repeated logo, say) -- you don't need to
 declare a duplicate asset entry for that, just point both elements at
 the one asset id.
+
+## Critical JSON rule for Math.tex
+
+DeckMaster `deck.json` must be strict valid JSON. This matters most for
+Math elements, because TeX uses many backslashes.
+
+Inside a JSON string, every TeX backslash MUST be written as a double
+backslash.
+
+Correct:
+
+```json
+{
+  "type": "Math",
+  "id": "12345678-1234-4234-8234-123456789012",
+  "bounds": { "x": 180.0, "y": 210.0, "width": 600.0, "height": 110.0 },
+  "tex": "\\frac{1}{2}x^2 + \\sqrt{\\pi}",
+  "font_size": 36.0,
+  "color": { "value": "#111111" }
+}
+````
+
+Wrong:
+
+```json
+{
+  "tex": "\frac{1}{2}x^2 + \sqrt{\pi}"
+}
+```
+
+The wrong version is not valid DeckMaster JSON. Some sequences are invalid
+JSON escapes, such as `\p`, `\m`, and `\h`. Others are valid JSON escapes
+but corrupt the math: `\rangle` contains `\r` as a carriage return,
+`\beta` contains `\b` as backspace, and `\frac` contains `\f` as form
+feed.
+
+When writing Math.tex, think in two layers:
+
+| Rendered TeX should be                  | JSON string must contain                     |    |               |
+| --------------------------------------- | -------------------------------------------- | -- | ------------- |
+| `\frac{1}{2}`                           | `"\\frac{1}{2}"`                             |    |               |
+| `                                       | \psi\rangle`                                 | `" | \psi\rangle"` |
+| `\mathcal{H}`                           | `"\\mathcal{H}"`                             |    |               |
+| `\rho_A=\operatorname{Tr}_B(\rho_{AB})` | `"\\rho_A=\\operatorname{Tr}_B(\\rho_{AB})"` |    |               |
+
+Before finalizing any deck with Math elements, mentally check:
+there must be no single TeX backslashes inside `tex` strings. TeX
+commands inside JSON should visually start with `\\`, not `\`.
+
 
 ## Layout guidance
 
@@ -271,6 +324,6 @@ exporting are conveniences, not requirements.
 - Use Text for prose.
 - Use Math for equations and formulas.
 - Put raw TeX in `Math.tex`, without `$...$`.
-- Escape TeX backslashes in JSON strings.
+- Escape every TeX backslash in `Math.tex` as `\\`; a JSON `tex` string must contain `"\\frac{1}{2}"`, not `"\frac{1}{2}"`.
 - Use Image only when a real backing file exists or the user has provided one.
 - Keep image/PDF bytes external through `asset_id`; never inline base64 in canonical `deck.json`.
