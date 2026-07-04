@@ -147,6 +147,50 @@ fn export_fails_when_pdf_image_has_no_raster_fallback() {
 }
 
 #[test]
+fn export_fails_when_svg_image_has_no_raster_fallback() {
+    let svg_asset_id = Uuid::new_v4();
+
+    let mut presentation = Presentation::new("SVG Image Deck");
+    presentation.assets.push(Asset {
+        id: svg_asset_id,
+        media_type: "image/svg+xml".to_string(),
+        alt: None,
+    });
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Image(ImageElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 10.0,
+            y: 10.0,
+            width: 100.0,
+            height: 100.0,
+        },
+        asset_id: svg_asset_id,
+        render_asset_id: None,
+        alt: None,
+    }));
+    presentation.slides.push(slide);
+
+    let mut package = DeckPackage::new(presentation);
+    package.asset_bytes.insert(
+        svg_asset_id,
+        br#"<svg xmlns="http://www.w3.org/2000/svg"></svg>"#.to_vec(),
+    );
+
+    let dir = tempdir();
+    let output = dir.join("should_not_exist.pptx");
+
+    let result = PptxExporter::export(&package, &output);
+
+    assert!(
+        result.is_err(),
+        "PPTX export must refuse an SVG-backed image without raster fallback"
+    );
+    assert!(!output.exists());
+}
+
+#[test]
 fn export_fails_on_an_empty_presentation_with_no_slides() {
     let presentation = Presentation::new("No Slides Deck");
     let package = DeckPackage::new(presentation);

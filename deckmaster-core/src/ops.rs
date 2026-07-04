@@ -298,10 +298,17 @@ fn validate_asset_reference(
         )));
     }
 
-    if require_raster_image && !asset.media_type.starts_with("image/") {
+    if require_raster_image && !is_raster_image_media_type(&asset.media_type) {
         issues.push(ValidationIssue::error(format!(
             "{context} must point to a raster image asset, but asset {} has media_type {}",
             asset.id, asset.media_type
         )));
     }
+}
+
+fn is_raster_image_media_type(media_type: &str) -> bool {
+    matches!(
+        media_type,
+        "image/png" | "image/jpeg" | "image/jpg" | "image/gif" | "image/webp" | "image/bmp"
+    )
 }

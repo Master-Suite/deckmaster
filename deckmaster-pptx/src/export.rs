@@ -219,11 +219,11 @@ fn resolve_image_element_for_pptx(
             ))
         })?;
 
-    if asset.media_type == "application/pdf" {
+    if asset_requires_raster_fallback_for_pptx(&asset.media_type) {
         let Some(render_asset_id) = image.render_asset_id else {
             return Err(PptxError::InvalidImageSource(format!(
-                "image element {} references PDF asset {} but has no render_asset_id raster fallback for PPTX export",
-                image.id, image.asset_id
+                "image element {} references {} asset {} but has no render_asset_id raster fallback for PPTX export",
+                image.id, asset.media_type, image.asset_id
             )));
         };
 
@@ -234,7 +234,7 @@ fn resolve_image_element_for_pptx(
         );
     }
 
-    if !asset.media_type.starts_with("image/") {
+    if !is_raster_image_media_type(&asset.media_type) {
         return Err(PptxError::InvalidImageSource(format!(
             "image element {} references asset {} with unsupported media_type {} for PPTX export",
             image.id, asset.id, asset.media_type
@@ -255,6 +255,7 @@ fn resolve_image_element_for_pptx(
     Ok((bytes.clone(), extension.to_string()))
 }
 
+
 fn resolve_raster_asset_for_pptx(
     package: &DeckPackage,
     asset_id: uuid::Uuid,
@@ -266,7 +267,7 @@ fn resolve_raster_asset_for_pptx(
         ))
     })?;
 
-    if !asset.media_type.starts_with("image/") {
+    if !is_raster_image_media_type(&asset.media_type) {
         return Err(PptxError::InvalidImageSource(format!(
             "{context} must point to a raster image asset for PPTX export, but asset {} has media_type {}",
             asset.id, asset.media_type
@@ -285,6 +286,17 @@ fn resolve_raster_asset_for_pptx(
     let extension = deckmaster_core::extension_for_media_type(&asset.media_type);
 
     Ok((bytes.clone(), extension.to_string()))
+}
+
+fn asset_requires_raster_fallback_for_pptx(media_type: &str) -> bool {
+    matches!(media_type, "application/pdf" | "image/svg+xml")
+}
+
+fn is_raster_image_media_type(media_type: &str) -> bool {
+    matches!(
+        media_type,
+        "image/png" | "image/jpeg" | "image/jpg" | "image/gif" | "image/webp" | "image/bmp"
+    )
 }
 
 fn patch_slide_size(xml: &str, width_pt: f32, height_pt: f32) -> String {

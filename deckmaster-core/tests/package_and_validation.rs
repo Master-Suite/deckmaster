@@ -129,6 +129,15 @@ fn pdf_assets_use_pdf_extension() {
 }
 
 #[test]
+fn svg_assets_use_svg_extension() {
+    assert_eq!(extension_for_media_type("image/svg+xml"), "svg");
+    assert_eq!(
+        deckmaster_core::media_type_for_extension("svg"),
+        "image/svg+xml"
+    );
+}
+
+#[test]
 fn deck_package_round_trips_through_a_real_zip_on_disk() {
     let asset_id = Uuid::new_v4();
     let presentation = presentation_with_image(asset_id);
@@ -469,6 +478,50 @@ fn validate_requires_math_render_asset_to_be_raster() {
                 && issue.message.contains("must point to a raster image asset")
         }),
         "expected raster fallback validation error, got: {issues:?}"
+    );
+}
+
+#[test]
+fn validate_rejects_svg_as_a_raster_render_fallback() {
+    let svg_asset_id = Uuid::new_v4();
+
+    let mut presentation = Presentation::new("Broken SVG Fallback Deck");
+    presentation.assets.push(Asset {
+        id: svg_asset_id,
+        media_type: "image/svg+xml".to_string(),
+        alt: None,
+    });
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Math(MathElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 100.0,
+            y: 100.0,
+            width: 500.0,
+            height: 80.0,
+        },
+        tex: "x^2".to_string(),
+        font_size: 36.0,
+        color: Color::hex("#111111"),
+        render_asset_id: Some(svg_asset_id),
+    }));
+    presentation.slides.push(slide);
+
+    let mut package = DeckPackage::new(presentation);
+    package.asset_bytes.insert(
+        svg_asset_id,
+        br#"<svg xmlns="http://www.w3.org/2000/svg"></svg>"#.to_vec(),
+    );
+
+    let issues = validate(&package);
+
+    assert!(
+        issues.iter().any(|issue| {
+            issue.severity == Severity::Error
+                && issue.message.contains("must point to a raster image asset")
+        }),
+        "expected SVG render fallback validation error, got: {issues:?}"
     );
 }
 

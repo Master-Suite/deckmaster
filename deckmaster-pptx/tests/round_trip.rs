@@ -406,3 +406,62 @@ fn pdf_image_with_raster_fallback_exports_as_pptx_image() {
 
     assert_eq!(image_count, 1);
 }
+
+#[test]
+fn svg_image_with_raster_fallback_exports_as_pptx_image() {
+    let svg_asset_id = Uuid::new_v4();
+    let fallback_asset_id = Uuid::new_v4();
+
+    let mut presentation = Presentation::new("SVG Fallback Deck");
+    presentation.assets.push(Asset {
+        id: svg_asset_id,
+        media_type: "image/svg+xml".to_string(),
+        alt: Some("source svg".to_string()),
+    });
+    presentation.assets.push(Asset {
+        id: fallback_asset_id,
+        media_type: "image/png".to_string(),
+        alt: Some("raster fallback".to_string()),
+    });
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Image(ImageElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 100.0,
+            y: 100.0,
+            width: 180.0,
+            height: 120.0,
+        },
+        asset_id: svg_asset_id,
+        render_asset_id: Some(fallback_asset_id),
+        alt: Some("source svg".to_string()),
+    }));
+    presentation.slides.push(slide);
+
+    let mut package = DeckPackage::new(presentation);
+    package.asset_bytes.insert(
+        svg_asset_id,
+        br#"<svg xmlns="http://www.w3.org/2000/svg"></svg>"#.to_vec(),
+    );
+    package
+        .asset_bytes
+        .insert(fallback_asset_id, sample_png_bytes());
+
+    let dir = tempdir();
+    let pptx_path = dir.join("svg_fallback.pptx");
+
+    PptxExporter::export(&package, &pptx_path).expect("export to pptx");
+
+    let reimported = PptxImporter::import(&pptx_path).expect("import from pptx");
+
+    let image_count = reimported
+        .presentation
+        .slides
+        .iter()
+        .flat_map(|slide| &slide.elements)
+        .filter(|element| matches!(element, Element::Image(_)))
+        .count();
+
+    assert_eq!(image_count, 1);
+}

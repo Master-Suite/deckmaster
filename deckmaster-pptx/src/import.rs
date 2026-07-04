@@ -155,6 +155,8 @@ fn media_type_for_path(path: &str) -> &'static str {
         "image/webp"
     } else if lower.ends_with(".bmp") {
         "image/bmp"
+    } else if lower.ends_with(".svg") {
+        "image/svg+xml"
     } else {
         "application/octet-stream"
     }

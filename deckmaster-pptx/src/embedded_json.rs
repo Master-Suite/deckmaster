@@ -68,15 +68,35 @@ fn inline_image_element(element: &mut Value, package: &DeckPackage) {
         return;
     };
 
-    let Some(asset) = package.presentation.find_asset(asset_id) else {
+    let Some(source_asset) = package.presentation.find_asset(asset_id) else {
         return;
     };
 
-    let Some(bytes) = package.asset_bytes.get(&asset_id) else {
+    let inline_asset_id = if source_asset.media_type == "application/pdf"
+        || source_asset.media_type == "image/svg+xml"
+{
+        object
+            .get("render_asset_id")
+            .and_then(Value::as_str)
+            .and_then(|id| uuid::Uuid::parse_str(id).ok())
+            .unwrap_or(asset_id)
+    } else {
+        asset_id
+    };
+
+    let Some(inline_asset) = package.presentation.find_asset(inline_asset_id) else {
         return;
     };
 
-    let data_url = format!("data:{};base64,{}", asset.media_type, BASE64.encode(bytes));
+    let Some(bytes) = package.asset_bytes.get(&inline_asset_id) else {
+        return;
+    };
+
+    let data_url = format!(
+        "data:{};base64,{}",
+        inline_asset.media_type,
+        BASE64.encode(bytes)
+    );
 
     object.remove("asset_id");
     object.remove("render_asset_id");

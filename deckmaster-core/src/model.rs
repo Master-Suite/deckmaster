@@ -149,6 +149,7 @@ pub fn extension_for_media_type(media_type: &str) -> &'static str {
         "image/gif" => "gif",
         "image/webp" => "webp",
         "image/bmp" => "bmp",
+        "image/svg+xml" => "svg",
         "application/pdf" => "pdf",
         _ => "png",
     }
@@ -161,6 +162,7 @@ pub fn media_type_for_extension(extension: &str) -> &'static str {
         "gif" => "image/gif",
         "webp" => "image/webp",
         "bmp" => "image/bmp",
+        "svg" => "image/svg+xml",
         "pdf" => "application/pdf",
         _ => "application/octet-stream",
     }
