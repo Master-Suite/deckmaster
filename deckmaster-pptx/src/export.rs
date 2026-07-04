@@ -1,4 +1,4 @@
-use deckmaster_core::{DeckPackage, Element, Presentation, Rect, Slide};
+use deckmaster_core::{DeckPackage, Element, ImageElement, Presentation, Rect, Slide};
 
 use std::collections::BTreeSet;
 use std::fs::File;
@@ -63,41 +63,58 @@ impl PptxExporter {
             let mut images = Vec::new();
 
             for element in &slide.elements {
-                if let Element::Image(image) = element {
-                    let asset = presentation.find_asset(image.asset_id).ok_or_else(|| {
-                        PptxError::InvalidImageSource(format!(
-                            "image element {} references asset_id {} which is not declared in assets[]",
-                            image.id, image.asset_id
-                        ))
-                    })?;
+                match element {
+                    Element::Image(image) => {
+                        let (bytes, extension) = resolve_image_element_for_pptx(package, image)?;
 
-                    let bytes = package.asset_bytes.get(&asset.id).ok_or_else(|| {
-                        PptxError::InvalidImageSource(format!(
-                            "asset {} ({}) is declared but its bytes are not present in the package -- the .deckpkg is missing assets/{}",
-                            asset.id,
-                            asset.file_name(),
-                            asset.file_name(),
-                        ))
-                    })?;
+                        media_counter += 1;
 
-                    media_counter += 1;
+                        // Relationship ids are scoped per slide rels file.
+                        let rel_id = format!("rId{}", images.len() + 1);
 
-                    // Relationship ids are scoped per slide rels file.
-                    let rel_id = format!("rId{}", images.len() + 1);
+                        // Media file names are global to avoid collisions.
+                        let media_name = format!("image{media_counter}.{extension}");
 
-                    let extension = deckmaster_core::extension_for_media_type(&asset.media_type);
+                        image_extensions.insert(extension.clone());
 
-                    // Media file names are global to avoid collisions.
-                    let media_name = format!("image{media_counter}.{extension}");
+                        images.push(ResolvedImage {
+                            rel_id,
+                            media_name,
+                            bytes,
+                            bounds: image.bounds.clone(),
+                        });
+                    }
 
-                    image_extensions.insert(extension.to_string());
+                    Element::Math(math) => {
+                        let Some(render_asset_id) = math.render_asset_id else {
+                            continue;
+                        };
 
-                    images.push(ResolvedImage {
-                        rel_id,
-                        media_name,
-                        bytes: bytes.clone(),
-                        bounds: image.bounds.clone(),
-                    });
+                        let (bytes, extension) = resolve_raster_asset_for_pptx(
+                            package,
+                            render_asset_id,
+                            &format!("math element {} render_asset_id", math.id),
+                        )?;
+
+                        media_counter += 1;
+
+                        let rel_id = format!("rId{}", images.len() + 1);
+                        let media_name = format!("image{media_counter}.{extension}");
+
+                        image_extensions.insert(extension.clone());
+
+                        images.push(ResolvedImage {
+                            rel_id,
+                            media_name,
+                            bytes,
+                            bounds: math.bounds.clone(),
+                        });
+                    }
+
+                    Element::Text(_)
+                    | Element::Shape(_)
+                    | Element::Table(_)
+                    | Element::Chart(_) => {}
                 }
             }
 
@@ -186,6 +203,88 @@ impl PptxExporter {
         let package = DeckPackage::new(presentation.clone());
         Self::export(&package, output)
     }
+}
+
+fn resolve_image_element_for_pptx(
+    package: &DeckPackage,
+    image: &ImageElement,
+) -> Result<(Vec<u8>, String)> {
+    let asset = package
+        .presentation
+        .find_asset(image.asset_id)
+        .ok_or_else(|| {
+            PptxError::InvalidImageSource(format!(
+                "image element {} references asset_id {} which is not declared in assets[]",
+                image.id, image.asset_id
+            ))
+        })?;
+
+    if asset.media_type == "application/pdf" {
+        let Some(render_asset_id) = image.render_asset_id else {
+            return Err(PptxError::InvalidImageSource(format!(
+                "image element {} references PDF asset {} but has no render_asset_id raster fallback for PPTX export",
+                image.id, image.asset_id
+            )));
+        };
+
+        return resolve_raster_asset_for_pptx(
+            package,
+            render_asset_id,
+            &format!("image element {} render_asset_id", image.id),
+        );
+    }
+
+    if !asset.media_type.starts_with("image/") {
+        return Err(PptxError::InvalidImageSource(format!(
+            "image element {} references asset {} with unsupported media_type {} for PPTX export",
+            image.id, asset.id, asset.media_type
+        )));
+    }
+
+    let bytes = package.asset_bytes.get(&asset.id).ok_or_else(|| {
+        PptxError::InvalidImageSource(format!(
+            "asset {} ({}) is declared but its bytes are not present in the package -- the .deckpkg is missing assets/{}",
+            asset.id,
+            asset.file_name(),
+            asset.file_name(),
+        ))
+    })?;
+
+    let extension = deckmaster_core::extension_for_media_type(&asset.media_type);
+
+    Ok((bytes.clone(), extension.to_string()))
+}
+
+fn resolve_raster_asset_for_pptx(
+    package: &DeckPackage,
+    asset_id: uuid::Uuid,
+    context: &str,
+) -> Result<(Vec<u8>, String)> {
+    let asset = package.presentation.find_asset(asset_id).ok_or_else(|| {
+        PptxError::InvalidImageSource(format!(
+            "{context} references asset_id {asset_id} which is not declared in assets[]"
+        ))
+    })?;
+
+    if !asset.media_type.starts_with("image/") {
+        return Err(PptxError::InvalidImageSource(format!(
+            "{context} must point to a raster image asset for PPTX export, but asset {} has media_type {}",
+            asset.id, asset.media_type
+        )));
+    }
+
+    let bytes = package.asset_bytes.get(&asset.id).ok_or_else(|| {
+        PptxError::InvalidImageSource(format!(
+            "asset {} ({}) is declared but its bytes are not present in the package -- the .deckpkg is missing assets/{}",
+            asset.id,
+            asset.file_name(),
+            asset.file_name(),
+        ))
+    })?;
+
+    let extension = deckmaster_core::extension_for_media_type(&asset.media_type);
+
+    Ok((bytes.clone(), extension.to_string()))
 }
 
 fn patch_slide_size(xml: &str, width_pt: f32, height_pt: f32) -> String {
@@ -319,56 +418,40 @@ fn generate_slide_relationships(images: &[ResolvedImage]) -> String {
 
 fn generate_slide_xml(slide: &Slide, images: &[ResolvedImage]) -> String {
     let mut shapes = String::new();
+    let mut text_counter = 0usize;
 
-    for (index, element) in slide.elements.iter().enumerate() {
-        if let Element::Text(text) = element {
-            let id = 100 + index;
+    for element in &slide.elements {
+        match element {
+            Element::Text(text) => {
+                text_counter += 1;
+                append_text_shape(
+                    &mut shapes,
+                    100 + text_counter,
+                    &text.bounds,
+                    &text.text,
+                    text.font_size,
+                    &text.color.value,
+                );
+            }
 
-            let x = pt_to_emu(text.bounds.x);
-            let y = pt_to_emu(text.bounds.y);
-            let cx = pt_to_emu(text.bounds.width);
-            let cy = pt_to_emu(text.bounds.height);
-            let font_size = (text.font_size * 100.0).round() as i64;
-            let color = pptx_rgb(&text.color.value);
+            Element::Math(math) => {
+                // If a Math element has a render_asset_id, it is exported
+                // as a raster image through `images`. If it does not, keep
+                // the equation visible by exporting raw TeX as a text box.
+                if math.render_asset_id.is_none() {
+                    text_counter += 1;
+                    append_text_shape(
+                        &mut shapes,
+                        100 + text_counter,
+                        &math.bounds,
+                        &math.tex,
+                        math.font_size,
+                        &math.color.value,
+                    );
+                }
+            }
 
-            shapes.push_str(&format!(
-                r#"
-<p:sp>
-  <p:nvSpPr>
-    <p:cNvPr id="{id}" name="Text{id}"/>
-    <p:cNvSpPr txBox="1"/>
-    <p:nvPr/>
-  </p:nvSpPr>
-
-  <p:spPr>
-    <a:xfrm>
-      <a:off x="{x}" y="{y}"/>
-      <a:ext cx="{cx}" cy="{cy}"/>
-    </a:xfrm>
-
-    <a:prstGeom prst="rect">
-      <a:avLst/>
-    </a:prstGeom>
-  </p:spPr>
-
-  <p:txBody>
-    <a:bodyPr/>
-    <a:lstStyle/>
-    <a:p>
-      <a:r>
-        <a:rPr sz="{font_size}">
-        <a:solidFill>
-            <a:srgbClr val="{color}"/>
-        </a:solidFill>
-        </a:rPr>
-        <a:t>{}</a:t>
-      </a:r>
-    </a:p>
-  </p:txBody>
-</p:sp>
-"#,
-                xml_escape(&text.text)
-            ));
+            Element::Image(_) | Element::Shape(_) | Element::Table(_) | Element::Chart(_) => {}
         }
     }
 
@@ -453,6 +536,61 @@ xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
 "#,
         shapes
     )
+}
+
+fn append_text_shape(
+    shapes: &mut String,
+    id: usize,
+    bounds: &Rect,
+    text: &str,
+    font_size: f32,
+    color: &str,
+) {
+    let x = pt_to_emu(bounds.x);
+    let y = pt_to_emu(bounds.y);
+    let cx = pt_to_emu(bounds.width);
+    let cy = pt_to_emu(bounds.height);
+    let font_size = (font_size * 100.0).round() as i64;
+    let color = pptx_rgb(color);
+
+    shapes.push_str(&format!(
+        r#"
+<p:sp>
+  <p:nvSpPr>
+    <p:cNvPr id="{id}" name="Text{id}"/>
+    <p:cNvSpPr txBox="1"/>
+    <p:nvPr/>
+  </p:nvSpPr>
+
+  <p:spPr>
+    <a:xfrm>
+      <a:off x="{x}" y="{y}"/>
+      <a:ext cx="{cx}" cy="{cy}"/>
+    </a:xfrm>
+
+    <a:prstGeom prst="rect">
+      <a:avLst/>
+    </a:prstGeom>
+  </p:spPr>
+
+  <p:txBody>
+    <a:bodyPr/>
+    <a:lstStyle/>
+    <a:p>
+      <a:r>
+        <a:rPr sz="{font_size}">
+        <a:solidFill>
+            <a:srgbClr val="{color}"/>
+        </a:solidFill>
+        </a:rPr>
+        <a:t>{}</a:t>
+      </a:r>
+    </a:p>
+  </p:txBody>
+</p:sp>
+"#,
+        xml_escape(text)
+    ));
 }
 
 fn replace_between(xml: &str, start_tag: &str, end_tag: &str, replacement: &str) -> String {

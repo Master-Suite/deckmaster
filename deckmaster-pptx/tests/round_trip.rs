@@ -4,7 +4,10 @@
 //! docs/DECKPKG_SPEC.md and the Phase 10 roadmap entries this descends
 //! from.
 
-use deckmaster_core::{Asset, Color, DeckPackage, Element, ImageElement, Presentation, Rect, Slide, TextElement};
+use deckmaster_core::{
+    Asset, Color, DeckPackage, Element, ImageElement, MathElement, Presentation, Rect, Slide,
+    TextElement,
+};
 use deckmaster_pptx::{PptxExporter, PptxImporter};
 use uuid::Uuid;
 
@@ -60,6 +63,7 @@ fn mixed_text_and_image_slide_round_trips() {
             height: 180.0,
         },
         asset_id,
+        render_asset_id: None,
         alt: Some("a tiny test square".to_string()),
     }));
 
@@ -149,6 +153,7 @@ fn multiple_images_on_one_slide_round_trip_with_distinct_assets() {
             height: 100.0,
         },
         asset_id: asset_id_a,
+        render_asset_id: None,
         alt: None,
     }));
 
@@ -161,6 +166,7 @@ fn multiple_images_on_one_slide_round_trip_with_distinct_assets() {
             height: 100.0,
         },
         asset_id: asset_id_b,
+        render_asset_id: None,
         alt: None,
     }));
 
@@ -229,6 +235,7 @@ fn images_across_multiple_slides_round_trip() {
             height: 100.0,
         },
         asset_id: asset_id_1,
+        render_asset_id: None,
         alt: None,
     }));
 
@@ -242,6 +249,7 @@ fn images_across_multiple_slides_round_trip() {
             height: 100.0,
         },
         asset_id: asset_id_2,
+        render_asset_id: None,
         alt: None,
     }));
 
@@ -297,4 +305,104 @@ fn slide_size_is_preserved_through_export() {
     // 720pt * 12700 EMU/pt = 9144000; 405pt * 12700 = 5143500.
     assert!(presentation_xml.contains("cx=\"9144000\""));
     assert!(presentation_xml.contains("cy=\"5143500\""));
+}
+
+#[test]
+fn math_without_render_fallback_exports_as_visible_tex_text() {
+    let mut presentation = Presentation::new("Math Fallback Deck");
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Math(MathElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 100.0,
+            y: 100.0,
+            width: 500.0,
+            height: 80.0,
+        },
+        tex: "\\alpha + \\beta".to_string(),
+        font_size: 32.0,
+        color: Color::hex("#111111"),
+        render_asset_id: None,
+    }));
+    presentation.slides.push(slide);
+
+    let package = DeckPackage::new(presentation);
+
+    let dir = tempdir();
+    let pptx_path = dir.join("math_fallback.pptx");
+
+    PptxExporter::export(&package, &pptx_path).expect("export to pptx");
+
+    let reimported = PptxImporter::import(&pptx_path).expect("import from pptx");
+
+    let has_tex_text = reimported
+        .presentation
+        .slides
+        .iter()
+        .flat_map(|slide| &slide.elements)
+        .any(|element| matches!(element, Element::Text(text) if text.text == "\\alpha + \\beta"));
+
+    assert!(
+        has_tex_text,
+        "math without render fallback should remain visible as raw TeX text in PPTX"
+    );
+}
+
+#[test]
+fn pdf_image_with_raster_fallback_exports_as_pptx_image() {
+    let pdf_asset_id = Uuid::new_v4();
+    let fallback_asset_id = Uuid::new_v4();
+
+    let mut presentation = Presentation::new("PDF Fallback Deck");
+    presentation.assets.push(Asset {
+        id: pdf_asset_id,
+        media_type: "application/pdf".to_string(),
+        alt: Some("source pdf".to_string()),
+    });
+    presentation.assets.push(Asset {
+        id: fallback_asset_id,
+        media_type: "image/png".to_string(),
+        alt: Some("raster fallback".to_string()),
+    });
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Image(ImageElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 100.0,
+            y: 100.0,
+            width: 180.0,
+            height: 120.0,
+        },
+        asset_id: pdf_asset_id,
+        render_asset_id: Some(fallback_asset_id),
+        alt: Some("source pdf".to_string()),
+    }));
+    presentation.slides.push(slide);
+
+    let mut package = DeckPackage::new(presentation);
+    package
+        .asset_bytes
+        .insert(pdf_asset_id, b"%PDF-1.4\n".to_vec());
+    package
+        .asset_bytes
+        .insert(fallback_asset_id, sample_png_bytes());
+
+    let dir = tempdir();
+    let pptx_path = dir.join("pdf_fallback.pptx");
+
+    PptxExporter::export(&package, &pptx_path).expect("export to pptx");
+
+    let reimported = PptxImporter::import(&pptx_path).expect("import from pptx");
+
+    let image_count = reimported
+        .presentation
+        .slides
+        .iter()
+        .flat_map(|slide| &slide.elements)
+        .filter(|element| matches!(element, Element::Image(_)))
+        .count();
+
+    assert_eq!(image_count, 1);
 }

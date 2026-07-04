@@ -1,8 +1,12 @@
-use deckmaster_core::{Asset, Color, DeckPackage, Element, ImageElement, Presentation, Slide, TextElement};
+use deckmaster_core::{
+    Asset, Color, DeckPackage, Element, ImageElement, Presentation, Slide, TextElement,
+};
 
 use std::path::Path;
 
-use crate::{Package, PresentationParser, PresentationXml, Relationships, Result, SlideParser, SlideXml};
+use crate::{
+    Package, PresentationParser, PresentationXml, Relationships, Result, SlideParser, SlideXml,
+};
 
 pub struct PptxImporter;
 
@@ -85,6 +89,7 @@ impl PptxImporter {
                     id: uuid::Uuid::new_v4(),
                     bounds: parsed_image.bounds,
                     asset_id,
+                    render_asset_id: None,
                     alt,
                 }));
             }

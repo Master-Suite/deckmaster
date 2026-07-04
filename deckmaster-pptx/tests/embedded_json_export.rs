@@ -37,6 +37,7 @@ fn presentation_with_image(asset_id: Uuid) -> Presentation {
             height: 50.0,
         },
         asset_id,
+        render_asset_id: None,
         alt: Some("alt text".to_string()),
     }));
     presentation.slides.push(slide);
@@ -69,11 +70,8 @@ fn embedded_json_inlines_a_correct_data_url() {
     assert!(src.starts_with("data:image/png;base64,"));
 
     let base64_part = src.trim_start_matches("data:image/png;base64,");
-    let decoded = base64::Engine::decode(
-        &base64::engine::general_purpose::STANDARD,
-        base64_part,
-    )
-    .expect("src must be valid base64");
+    let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, base64_part)
+        .expect("src must be valid base64");
 
     assert_eq!(decoded, sample_png_bytes());
 }

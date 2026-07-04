@@ -149,6 +149,7 @@ pub fn extension_for_media_type(media_type: &str) -> &'static str {
         "image/gif" => "gif",
         "image/webp" => "webp",
         "image/bmp" => "bmp",
+        "application/pdf" => "pdf",
         _ => "png",
     }
 }
@@ -160,6 +161,7 @@ pub fn media_type_for_extension(extension: &str) -> &'static str {
         "gif" => "image/gif",
         "webp" => "image/webp",
         "bmp" => "image/bmp",
+        "pdf" => "application/pdf",
         _ => "application/octet-stream",
     }
 }
@@ -168,6 +170,7 @@ pub fn media_type_for_extension(extension: &str) -> &'static str {
 #[serde(tag = "type")]
 pub enum Element {
     Text(TextElement),
+    Math(MathElement),
     Image(ImageElement),
     Shape(ShapeElement),
     Table(TableElement),
@@ -183,13 +186,33 @@ pub struct TextElement {
     pub color: Color,
 }
 
+/// A semantic TeX equation/formula element. `tex` is the editable source of
+/// truth. Raster renderers may attach `render_asset_id` as a PNG fallback for
+/// targets that cannot consume TeX directly, such as PPTX.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MathElement {
+    pub id: Uuid,
+    pub bounds: Rect,
+    pub tex: String,
+    pub font_size: f32,
+    pub color: Color,
+    #[serde(default)]
+    pub render_asset_id: Option<Uuid>,
+}
+
 /// An image element references a package asset by id. It never carries
 /// image bytes or a data: URL directly — see docs/DECKPKG_SPEC.md §4.
+///
+/// `render_asset_id` is optional and exists for source assets that are not
+/// directly embeddable everywhere, especially `application/pdf` images that
+/// need a raster fallback for PPTX or web previews.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ImageElement {
     pub id: Uuid,
     pub bounds: Rect,
     pub asset_id: Uuid,
+    #[serde(default)]
+    pub render_asset_id: Option<Uuid>,
     #[serde(default)]
     pub alt: Option<String>,
 }
@@ -227,6 +250,7 @@ impl Element {
     pub fn kind_name(&self) -> &'static str {
         match self {
             Element::Text(_) => "Text",
+            Element::Math(_) => "Math",
             Element::Image(_) => "Image",
             Element::Shape(_) => "Shape",
             Element::Table(_) => "Table",
@@ -237,6 +261,7 @@ impl Element {
     pub fn id(&self) -> Uuid {
         match self {
             Element::Text(text) => text.id,
+            Element::Math(math) => math.id,
             Element::Image(image) => image.id,
             Element::Shape(shape) => shape.id,
             Element::Table(table) => table.id,
@@ -246,14 +271,7 @@ impl Element {
 }
 
 impl Slide {
-    pub fn add_text(
-        &mut self,
-        text: impl Into<String>,
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-    ) {
+    pub fn add_text(&mut self, text: impl Into<String>, x: f32, y: f32, width: f32, height: f32) {
         self.elements.push(Element::Text(TextElement {
             id: Uuid::new_v4(),
             bounds: Rect {

@@ -2,6 +2,7 @@ use crate::io::{DeckMasterError, Result};
 use crate::model::{extension_for_media_type, Element, Presentation, Rect};
 use crate::package::DeckPackage;
 
+use std::collections::HashSet;
 use uuid::Uuid;
 
 pub fn move_element(
@@ -79,10 +80,22 @@ fn find_element_mut(
 fn element_bounds_mut(element: &mut Element) -> &mut Rect {
     match element {
         Element::Text(text) => &mut text.bounds,
+        Element::Math(math) => &mut math.bounds,
         Element::Image(image) => &mut image.bounds,
         Element::Shape(shape) => &mut shape.bounds,
         Element::Table(table) => &mut table.bounds,
         Element::Chart(chart) => &mut chart.bounds,
+    }
+}
+
+fn element_bounds(element: &Element) -> &Rect {
+    match element {
+        Element::Text(text) => &text.bounds,
+        Element::Math(math) => &math.bounds,
+        Element::Image(image) => &image.bounds,
+        Element::Shape(shape) => &shape.bounds,
+        Element::Table(table) => &table.bounds,
+        Element::Chart(chart) => &chart.bounds,
     }
 }
 
@@ -124,6 +137,8 @@ impl ValidationIssue {
 pub fn validate(package: &DeckPackage) -> Vec<ValidationIssue> {
     let mut issues = Vec::new();
     let presentation = &package.presentation;
+    let mut referenced_assets = HashSet::new();
+    let mut missing_asset_bytes_reported = HashSet::new();
 
     if presentation.slides.is_empty() {
         issues.push(ValidationIssue::error("presentation has no slides"));
@@ -138,13 +153,7 @@ pub fn validate(package: &DeckPackage) -> Vec<ValidationIssue> {
         }
 
         for element in &slide.elements {
-            let bounds = match element {
-                Element::Text(text) => &text.bounds,
-                Element::Image(image) => &image.bounds,
-                Element::Shape(shape) => &shape.bounds,
-                Element::Table(table) => &table.bounds,
-                Element::Chart(chart) => &chart.bounds,
-            };
+            let bounds = element_bounds(element);
 
             if bounds.width < 0.0 || bounds.height < 0.0 {
                 issues.push(ValidationIssue::error(format!(
@@ -154,54 +163,93 @@ pub fn validate(package: &DeckPackage) -> Vec<ValidationIssue> {
                 )));
             }
 
-            if let Element::Image(image) = element {
-                let asset_declared = presentation.find_asset(image.asset_id);
-
-                match asset_declared {
-                    None => {
+            match element {
+                Element::Text(text) => {
+                    if text.font_size <= 0.0 {
                         issues.push(ValidationIssue::error(format!(
-                            "image element {} references asset_id {} which is not declared in assets[]",
-                            image.id, image.asset_id
+                            "text element {} on slide {} has non-positive font_size",
+                            text.id, slide.id
                         )));
                     }
-                    Some(asset) => {
-                        if !package.asset_bytes.contains_key(&asset.id) {
-                            issues.push(ValidationIssue::error(format!(
-                                "asset {} ({}) is declared but missing from assets/ in the package",
-                                asset.id,
-                                asset.file_name()
-                            )));
-                        }
+                }
+
+                Element::Math(math) => {
+                    if math.tex.trim().is_empty() {
+                        issues.push(ValidationIssue::error(format!(
+                            "math element {} on slide {} has empty tex",
+                            math.id, slide.id
+                        )));
+                    }
+
+                    if math.font_size <= 0.0 {
+                        issues.push(ValidationIssue::error(format!(
+                            "math element {} on slide {} has non-positive font_size",
+                            math.id, slide.id
+                        )));
+                    }
+
+                    if let Some(render_asset_id) = math.render_asset_id {
+                        referenced_assets.insert(render_asset_id);
+
+                        validate_asset_reference(
+                            package,
+                            &mut issues,
+                            &mut missing_asset_bytes_reported,
+                            render_asset_id,
+                            format!(
+                                "math element {} render_asset_id {}",
+                                math.id, render_asset_id
+                            ),
+                            true,
+                        );
                     }
                 }
+
+                Element::Image(image) => {
+                    referenced_assets.insert(image.asset_id);
+
+                    validate_asset_reference(
+                        package,
+                        &mut issues,
+                        &mut missing_asset_bytes_reported,
+                        image.asset_id,
+                        format!("image element {} asset_id {}", image.id, image.asset_id),
+                        false,
+                    );
+
+                    if let Some(render_asset_id) = image.render_asset_id {
+                        referenced_assets.insert(render_asset_id);
+
+                        validate_asset_reference(
+                            package,
+                            &mut issues,
+                            &mut missing_asset_bytes_reported,
+                            render_asset_id,
+                            format!(
+                                "image element {} render_asset_id {}",
+                                image.id, render_asset_id
+                            ),
+                            true,
+                        );
+                    }
+                }
+
+                Element::Shape(_) | Element::Table(_) | Element::Chart(_) => {}
             }
         }
     }
 
     // Referential integrity + file presence for every declared asset,
     // independent of whether anything currently references it.
-    let mut referenced_assets = std::collections::HashSet::new();
-
-    for slide in &presentation.slides {
-        for element in &slide.elements {
-            if let Element::Image(image) = element {
-                referenced_assets.insert(image.asset_id);
-            }
-        }
-    }
-
     for asset in &presentation.assets {
-        if !package.asset_bytes.contains_key(&asset.id) {
-            // Already reported above if it's referenced; only add a
-            // fresh issue here if nothing referenced it yet (so we don't
-            // duplicate the message for referenced-and-missing assets).
-            if !referenced_assets.contains(&asset.id) {
-                issues.push(ValidationIssue::error(format!(
-                    "asset {} ({}) is declared in assets[] but missing from the package",
-                    asset.id,
-                    asset.file_name()
-                )));
-            }
+        if !package.asset_bytes.contains_key(&asset.id)
+            && !missing_asset_bytes_reported.contains(&asset.id)
+        {
+            issues.push(ValidationIssue::error(format!(
+                "asset {} ({}) is declared in assets[] but missing from the package",
+                asset.id,
+                asset.file_name()
+            )));
         }
 
         let expected_extension = extension_for_media_type(&asset.media_type);
@@ -224,4 +272,36 @@ pub fn validate(package: &DeckPackage) -> Vec<ValidationIssue> {
     }
 
     issues
+}
+
+fn validate_asset_reference(
+    package: &DeckPackage,
+    issues: &mut Vec<ValidationIssue>,
+    missing_asset_bytes_reported: &mut HashSet<Uuid>,
+    asset_id: Uuid,
+    context: String,
+    require_raster_image: bool,
+) {
+    let Some(asset) = package.presentation.find_asset(asset_id) else {
+        issues.push(ValidationIssue::error(format!(
+            "{context} references asset_id {asset_id} which is not declared in assets[]"
+        )));
+        return;
+    };
+
+    if !package.asset_bytes.contains_key(&asset.id) {
+        missing_asset_bytes_reported.insert(asset.id);
+        issues.push(ValidationIssue::error(format!(
+            "asset {} ({}) referenced by {context} is declared but missing from assets/ in the package",
+            asset.id,
+            asset.file_name()
+        )));
+    }
+
+    if require_raster_image && !asset.media_type.starts_with("image/") {
+        issues.push(ValidationIssue::error(format!(
+            "{context} must point to a raster image asset, but asset {} has media_type {}",
+            asset.id, asset.media_type
+        )));
+    }
 }

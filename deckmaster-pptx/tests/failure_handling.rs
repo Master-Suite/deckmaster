@@ -42,6 +42,7 @@ fn presentation_with_one_image(asset_id: Uuid) -> Presentation {
             height: 100.0,
         },
         asset_id,
+        render_asset_id: None,
         alt: None,
     }));
     presentation.slides.push(slide);
@@ -98,6 +99,49 @@ fn export_fails_when_image_references_an_undeclared_asset_id() {
     assert!(
         result.is_err(),
         "exporter must refuse to export an image element with a dangling asset_id"
+    );
+    assert!(!output.exists());
+}
+
+#[test]
+fn export_fails_when_pdf_image_has_no_raster_fallback() {
+    let pdf_asset_id = Uuid::new_v4();
+
+    let mut presentation = Presentation::new("PDF Image Deck");
+    presentation.assets.push(Asset {
+        id: pdf_asset_id,
+        media_type: "application/pdf".to_string(),
+        alt: None,
+    });
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Image(ImageElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 10.0,
+            y: 10.0,
+            width: 100.0,
+            height: 100.0,
+        },
+        asset_id: pdf_asset_id,
+        render_asset_id: None,
+        alt: None,
+    }));
+    presentation.slides.push(slide);
+
+    let mut package = DeckPackage::new(presentation);
+    package
+        .asset_bytes
+        .insert(pdf_asset_id, b"%PDF-1.4\n".to_vec());
+
+    let dir = tempdir();
+    let output = dir.join("should_not_exist.pptx");
+
+    let result = PptxExporter::export(&package, &output);
+
+    assert!(
+        result.is_err(),
+        "PPTX export must refuse a PDF-backed image without raster fallback"
     );
     assert!(!output.exists());
 }

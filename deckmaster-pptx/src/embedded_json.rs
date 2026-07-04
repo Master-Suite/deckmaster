@@ -79,5 +79,6 @@ fn inline_image_element(element: &mut Value, package: &DeckPackage) {
     let data_url = format!("data:{};base64,{}", asset.media_type, BASE64.encode(bytes));
 
     object.remove("asset_id");
+    object.remove("render_asset_id");
     object.insert("src".to_string(), json!(data_url));
 }

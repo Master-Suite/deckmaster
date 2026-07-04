@@ -1,6 +1,6 @@
 use deckmaster_core::{
     extension_for_media_type, validate, Asset, Color, DeckPackage, Element, ImageElement,
-    Presentation, Rect, Severity, Slide, TextElement,
+    MathElement, Presentation, Rect, Severity, Slide, TextElement,
 };
 use uuid::Uuid;
 
@@ -47,6 +47,7 @@ fn presentation_with_image(asset_id: Uuid) -> Presentation {
             height: 150.0,
         },
         asset_id,
+        render_asset_id: None,
         alt: Some("a test image".to_string()),
     }));
 
@@ -85,6 +86,45 @@ fn image_element_serializes_with_asset_id_not_src() {
         !json.contains("data:image"),
         "serialized deck.json must never embed a data: URL -- that's the \
          one-way embedded-json export's job, not the canonical format"
+    );
+}
+
+#[test]
+fn math_element_round_trips_through_json() {
+    let mut presentation = Presentation::new("Math Deck");
+
+    let mut slide = Slide::new(Some("Equation Slide".to_string()));
+    slide.elements.push(Element::Math(MathElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 100.0,
+            y: 120.0,
+            width: 500.0,
+            height: 80.0,
+        },
+        tex: "\\frac{1}{1 + e^{-x}}".to_string(),
+        font_size: 36.0,
+        color: Color::hex("#111111"),
+        render_asset_id: None,
+    }));
+
+    presentation.slides.push(slide);
+
+    let json = deckmaster_core::to_json(&presentation).expect("serialize");
+    assert!(json.contains(r#""type": "Math""#));
+    assert!(json.contains(r#""tex": "\\frac{1}{1 + e^{-x}}""#));
+
+    let reparsed = deckmaster_core::from_json(&json).expect("deserialize");
+
+    assert_eq!(presentation, reparsed);
+}
+
+#[test]
+fn pdf_assets_use_pdf_extension() {
+    assert_eq!(extension_for_media_type("application/pdf"), "pdf");
+    assert_eq!(
+        deckmaster_core::media_type_for_extension("pdf"),
+        "application/pdf"
     );
 }
 
@@ -291,18 +331,20 @@ fn validate_flags_a_presentation_with_no_slides() {
 fn validate_flags_negative_element_bounds() {
     let mut presentation = presentation_with_text_only();
 
-    presentation.slides[0].elements.push(Element::Text(TextElement {
-        id: Uuid::new_v4(),
-        bounds: Rect {
-            x: 0.0,
-            y: 0.0,
-            width: -10.0,
-            height: 20.0,
-        },
-        text: "broken bounds".to_string(),
-        font_size: 18.0,
-        color: Color::hex("#000000"),
-    }));
+    presentation.slides[0]
+        .elements
+        .push(Element::Text(TextElement {
+            id: Uuid::new_v4(),
+            bounds: Rect {
+                x: 0.0,
+                y: 0.0,
+                width: -10.0,
+                height: 20.0,
+            },
+            text: "broken bounds".to_string(),
+            font_size: 18.0,
+            color: Color::hex("#000000"),
+        }));
 
     let package = DeckPackage::new(presentation);
     let issues = validate(&package);
@@ -313,6 +355,121 @@ fn validate_flags_negative_element_bounds() {
         .collect();
 
     assert!(!errors.is_empty());
+}
+
+#[test]
+fn validate_flags_empty_math_tex() {
+    let mut presentation = Presentation::new("Broken Math Deck");
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Math(MathElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 100.0,
+            y: 100.0,
+            width: 500.0,
+            height: 80.0,
+        },
+        tex: "   ".to_string(),
+        font_size: 36.0,
+        color: Color::hex("#111111"),
+        render_asset_id: None,
+    }));
+
+    presentation.slides.push(slide);
+
+    let package = DeckPackage::new(presentation);
+    let issues = validate(&package);
+
+    assert!(
+        issues
+            .iter()
+            .any(|issue| issue.severity == Severity::Error && issue.message.contains("empty tex")),
+        "expected empty math tex validation error, got: {issues:?}"
+    );
+}
+
+#[test]
+fn validate_accepts_pdf_image_asset_with_present_bytes() {
+    let pdf_asset_id = Uuid::new_v4();
+
+    let mut presentation = Presentation::new("PDF Image Deck");
+    presentation.assets.push(Asset {
+        id: pdf_asset_id,
+        media_type: "application/pdf".to_string(),
+        alt: Some("diagram".to_string()),
+    });
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Image(ImageElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 10.0,
+            y: 10.0,
+            width: 200.0,
+            height: 120.0,
+        },
+        asset_id: pdf_asset_id,
+        render_asset_id: None,
+        alt: Some("diagram".to_string()),
+    }));
+    presentation.slides.push(slide);
+
+    let mut package = DeckPackage::new(presentation);
+    package
+        .asset_bytes
+        .insert(pdf_asset_id, b"%PDF-1.4\n".to_vec());
+
+    let issues = validate(&package);
+    let errors: Vec<_> = issues
+        .iter()
+        .filter(|issue| issue.severity == Severity::Error)
+        .collect();
+
+    assert!(errors.is_empty(), "unexpected errors: {issues:?}");
+}
+
+#[test]
+fn validate_requires_math_render_asset_to_be_raster() {
+    let pdf_asset_id = Uuid::new_v4();
+
+    let mut presentation = Presentation::new("Broken Math Fallback Deck");
+    presentation.assets.push(Asset {
+        id: pdf_asset_id,
+        media_type: "application/pdf".to_string(),
+        alt: None,
+    });
+
+    let mut slide = Slide::new(Some("Slide 1".to_string()));
+    slide.elements.push(Element::Math(MathElement {
+        id: Uuid::new_v4(),
+        bounds: Rect {
+            x: 100.0,
+            y: 100.0,
+            width: 500.0,
+            height: 80.0,
+        },
+        tex: "x^2".to_string(),
+        font_size: 36.0,
+        color: Color::hex("#111111"),
+        render_asset_id: Some(pdf_asset_id),
+    }));
+    presentation.slides.push(slide);
+
+    let mut package = DeckPackage::new(presentation);
+    package
+        .asset_bytes
+        .insert(pdf_asset_id, b"%PDF-1.4\n".to_vec());
+
+    let issues = validate(&package);
+
+    assert!(
+        issues.iter().any(|issue| {
+            issue.severity == Severity::Error
+                && issue.message.contains("must point to a raster image asset")
+        }),
+        "expected raster fallback validation error, got: {issues:?}"
+    );
 }
 
 /// A fresh temp directory under the crate's own target dir, cleaned up by
@@ -326,4 +483,3 @@ fn tempdir() -> std::path::PathBuf {
     std::fs::create_dir_all(&dir).expect("create temp dir");
     dir
 }
-
