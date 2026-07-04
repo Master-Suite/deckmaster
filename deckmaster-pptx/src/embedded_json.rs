@@ -24,8 +24,7 @@ impl EmbeddedJsonExporter {
 
         if let Some(slides) = document.get_mut("slides").and_then(Value::as_array_mut) {
             for slide in slides {
-                let Some(elements) = slide.get_mut("elements").and_then(Value::as_array_mut)
-                else {
+                let Some(elements) = slide.get_mut("elements").and_then(Value::as_array_mut) else {
                     continue;
                 };
 

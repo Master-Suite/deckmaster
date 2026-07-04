@@ -11,9 +11,7 @@ pub struct Package {
 }
 
 impl Package {
-    pub fn open(
-        path: impl AsRef<Path>,
-    ) -> Result<Self> {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
 
         let archive = ZipArchive::new(file)?;
@@ -21,34 +19,22 @@ impl Package {
         Ok(Self { archive })
     }
 
-    pub fn read_bytes(
-        &mut self,
-        path: &str,
-    ) -> Result<Vec<u8>> {
-        let mut file =
-            self.archive.by_name(path)?;
+    pub fn read_bytes(&mut self, path: &str) -> Result<Vec<u8>> {
+        let mut file = self.archive.by_name(path)?;
 
         let mut bytes = Vec::new();
 
-        file.read_to_end(&mut bytes)
-            .map_err(crate::PptxError::Io)?;
+        file.read_to_end(&mut bytes).map_err(crate::PptxError::Io)?;
 
         Ok(bytes)
     }
 
-    pub fn contains(
-        &mut self,
-        path: &str,
-    ) -> bool {
+    pub fn contains(&mut self, path: &str) -> bool {
         self.archive.by_name(path).is_ok()
     }
 
-    pub fn read_string(
-        &mut self,
-        path: &str,
-    ) -> Result<String> {
-        let mut file =
-            self.archive.by_name(path)?;
+    pub fn read_string(&mut self, path: &str) -> Result<String> {
+        let mut file = self.archive.by_name(path)?;
 
         let mut xml = String::new();
 
@@ -58,18 +44,12 @@ impl Package {
         Ok(xml)
     }
 
-    pub fn file_names(
-        &mut self,
-    ) -> Vec<String> {
+    pub fn file_names(&mut self) -> Vec<String> {
         let mut names = Vec::new();
 
         for i in 0..self.archive.len() {
-            if let Ok(file) =
-                self.archive.by_index(i)
-            {
-                names.push(
-                    file.name().to_string(),
-                );
+            if let Ok(file) = self.archive.by_index(i) {
+                names.push(file.name().to_string());
             }
         }
 

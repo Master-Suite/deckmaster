@@ -37,12 +37,9 @@ impl DeckPackage {
         let file = File::open(path)?;
         let mut archive = ZipArchive::new(file)?;
 
-        let deck_json = read_zip_entry_to_string(&mut archive, "deck.json")
-            .ok_or_else(|| {
-                DeckMasterError::Unsupported(
-                    "package is missing deck.json at its root".to_string(),
-                )
-            })?;
+        let deck_json = read_zip_entry_to_string(&mut archive, "deck.json").ok_or_else(|| {
+            DeckMasterError::Unsupported("package is missing deck.json at its root".to_string())
+        })?;
 
         let presentation: Presentation = serde_json::from_str(&deck_json)?;
 

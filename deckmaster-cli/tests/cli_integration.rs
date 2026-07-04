@@ -71,11 +71,7 @@ fn new_creates_an_openable_deckpkg_with_a_default_slide() {
     let dir = tempdir();
     let file = dir.join("hello.deckpkg");
 
-    let output = run(&[
-        "new",
-        file.to_str().unwrap(),
-        "My First Deck",
-    ]);
+    let output = run(&["new", file.to_str().unwrap(), "My First Deck"]);
 
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     assert!(stdout(&output).contains("Presentation created"));
@@ -142,12 +138,7 @@ fn add_slide_then_add_text_at_a_one_indexed_slide_number() {
 
     // Slide numbers are 1-indexed at the CLI boundary -- "2" means the
     // second slide, not an array index.
-    let add_text_output = run(&[
-        "add-text",
-        file.to_str().unwrap(),
-        "2",
-        "Some body text",
-    ]);
+    let add_text_output = run(&["add-text", file.to_str().unwrap(), "2", "Some body text"]);
     assert!(add_text_output.status.success());
     assert!(stdout(&add_text_output).contains("Text added"));
 
@@ -439,7 +430,11 @@ fn pack_and_unpack_round_trip_through_each_other() {
         unpacked_dir.join("deck.json").to_str().unwrap(),
         repacked.to_str().unwrap(),
     ]);
-    assert!(repack_output.status.success(), "stderr: {}", stderr(&repack_output));
+    assert!(
+        repack_output.status.success(),
+        "stderr: {}",
+        stderr(&repack_output)
+    );
 
     let original = DeckPackage::open(&packed).unwrap();
     let round_tripped = DeckPackage::open(&repacked).unwrap();
@@ -469,7 +464,11 @@ fn export_pptx_then_import_pptx_preserves_the_default_text() {
         deckpkg.to_str().unwrap(),
         pptx.to_str().unwrap(),
     ]);
-    assert!(export_output.status.success(), "stderr: {}", stderr(&export_output));
+    assert!(
+        export_output.status.success(),
+        "stderr: {}",
+        stderr(&export_output)
+    );
     assert!(stdout(&export_output).contains("PPTX exported"));
     assert!(pptx.exists());
 
@@ -479,7 +478,11 @@ fn export_pptx_then_import_pptx_preserves_the_default_text() {
         pptx.to_str().unwrap(),
         reimported.to_str().unwrap(),
     ]);
-    assert!(import_output.status.success(), "stderr: {}", stderr(&import_output));
+    assert!(
+        import_output.status.success(),
+        "stderr: {}",
+        stderr(&import_output)
+    );
     assert!(stdout(&import_output).contains("PPTX imported"));
 
     let package = DeckPackage::open(&reimported).expect("open reimported package");
@@ -581,7 +584,11 @@ fn export_embedded_json_inlines_a_real_image_as_a_data_url() {
     .expect("write asset");
 
     let packed = dir.join("packed.deckpkg");
-    let pack_output = run(&["pack", deck_json.to_str().unwrap(), packed.to_str().unwrap()]);
+    let pack_output = run(&[
+        "pack",
+        deck_json.to_str().unwrap(),
+        packed.to_str().unwrap(),
+    ]);
     assert!(pack_output.status.success());
 
     let embedded = dir.join("embedded.json");
@@ -617,7 +624,11 @@ fn move_resize_and_update_text_all_persist_to_disk() {
         "300",
         "220",
     ]);
-    assert!(move_output.status.success(), "stderr: {}", stderr(&move_output));
+    assert!(
+        move_output.status.success(),
+        "stderr: {}",
+        stderr(&move_output)
+    );
     assert!(stdout(&move_output).contains("Element moved"));
 
     let resize_output = run(&[

@@ -13,8 +13,7 @@ use deckmaster_pptx::{PptxExporter, PptxImporter};
 use uuid::Uuid;
 
 fn fixture_path() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/real_world_fixture.pptx")
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/real_world_fixture.pptx")
 }
 
 fn tempdir() -> std::path::PathBuf {
@@ -49,7 +48,10 @@ fn real_pptx_import_has_usable_elements() {
         .map(|slide| slide.elements.len())
         .sum();
 
-    assert!(total_elements > 0, "expected at least some imported elements");
+    assert!(
+        total_elements > 0,
+        "expected at least some imported elements"
+    );
 
     let has_text = package.presentation.slides.iter().any(|slide| {
         slide
@@ -113,8 +115,8 @@ fn real_pptx_can_be_reexported_and_reimported_again() {
 
     PptxExporter::export(&package, &reexported_path).expect("reexport must succeed");
 
-    let reimported =
-        PptxImporter::import(&reexported_path).expect("reimporting the reexported pptx must succeed");
+    let reimported = PptxImporter::import(&reexported_path)
+        .expect("reimporting the reexported pptx must succeed");
 
     assert_eq!(
         reimported.presentation.slides.len(),

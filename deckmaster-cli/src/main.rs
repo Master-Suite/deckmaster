@@ -1,8 +1,7 @@
 use clap::{Parser, Subcommand};
 use deckmaster_core::{
     move_element as core_move_element, resize_element as core_resize_element,
-    update_text as core_update_text, DeckPackage, Document, Element, Presentation, Slide,
-    Severity,
+    update_text as core_update_text, DeckPackage, Document, Element, Presentation, Severity, Slide,
 };
 use deckmaster_pptx::{EmbeddedJsonExporter, PptxExporter, PptxImporter};
 use std::fs;
@@ -21,13 +20,20 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Show a human-readable summary of a .deckpkg's contents.
-    Inspect { file: PathBuf },
+    Inspect {
+        file: PathBuf,
+    },
 
     /// Create a new, empty .deckpkg.
-    New { file: PathBuf, title: String },
+    New {
+        file: PathBuf,
+        title: String,
+    },
 
     /// Run the validation checklist against a .deckpkg.
-    Validate { file: PathBuf },
+    Validate {
+        file: PathBuf,
+    },
 
     /// Pack a deck.json (+ optional assets dir) into a .deckpkg.
     Pack {
@@ -52,7 +58,10 @@ enum Commands {
         out_dir: Option<PathBuf>,
     },
 
-    AddSlide { file: PathBuf, title: String },
+    AddSlide {
+        file: PathBuf,
+        title: String,
+    },
 
     AddText {
         file: PathBuf,
@@ -61,15 +70,24 @@ enum Commands {
     },
 
     /// Import a .pptx into a .deckpkg.
-    ImportPptx { input: PathBuf, output: PathBuf },
+    ImportPptx {
+        input: PathBuf,
+        output: PathBuf,
+    },
 
     /// Export a .deckpkg to .pptx.
-    ExportPptx { input: PathBuf, output: PathBuf },
+    ExportPptx {
+        input: PathBuf,
+        output: PathBuf,
+    },
 
     /// Export a .deckpkg to a single self-contained JSON file with
     /// images inlined as data: URLs. One-way convenience export -- see
     /// docs/DECKPKG_SPEC.md. Not re-importable.
-    ExportEmbeddedJson { input: PathBuf, output: PathBuf },
+    ExportEmbeddedJson {
+        input: PathBuf,
+        output: PathBuf,
+    },
 
     MoveElement {
         file: PathBuf,
@@ -172,11 +190,7 @@ fn add_slide(file: PathBuf, title: String) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-fn add_text(
-    file: PathBuf,
-    slide: usize,
-    text: String,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn add_text(file: PathBuf, slide: usize, text: String) -> Result<(), Box<dyn std::error::Error>> {
     if slide == 0 {
         return Err("slide numbers start at 1".into());
     }
@@ -301,7 +315,10 @@ fn unpack(file: PathBuf, out_dir: Option<PathBuf>) -> Result<(), Box<dyn std::er
     fs::create_dir_all(&out_dir)?;
 
     let deck_json_path = out_dir.join("deck.json");
-    fs::write(&deck_json_path, serde_json::to_string_pretty(&package.presentation)?)?;
+    fs::write(
+        &deck_json_path,
+        serde_json::to_string_pretty(&package.presentation)?,
+    )?;
 
     if !package.asset_bytes.is_empty() {
         let assets_dir = out_dir.join("assets");
@@ -346,12 +363,7 @@ fn validate_command(file: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         println!("{}: valid ({} note(s))", file.display(), infos.len());
         Ok(())
     } else {
-        Err(format!(
-            "{}: {} error(s) found",
-            file.display(),
-            errors.len()
-        )
-        .into())
+        Err(format!("{}: {} error(s) found", file.display(), errors.len()).into())
     }
 }
 
@@ -370,10 +382,7 @@ fn inspect(file: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
             "MISSING from package".to_string()
         };
 
-        println!(
-            "  - Asset [{}] {} ({})",
-            asset.id, asset.media_type, status
-        );
+        println!("  - Asset [{}] {} ({})", asset.id, asset.media_type, status);
     }
 
     for (index, slide) in presentation.slides.iter().enumerate() {
@@ -390,12 +399,25 @@ fn inspect(file: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
                     println!("  - Text [{}]: {}", text.id, text.text);
                 }
 
+                Element::Math(math) => {
+                    let fallback = math
+                        .render_asset_id
+                        .map(|id| format!(" render_asset_id {id}"))
+                        .unwrap_or_default();
+
+                    println!("  - Math [{}]: {}{}", math.id, math.tex, fallback);
+                }
+
                 Element::Image(image) => {
                     let alt = image.alt.as_deref().unwrap_or("(no alt)");
+                    let fallback = image
+                        .render_asset_id
+                        .map(|id| format!(", render_asset_id {id}"))
+                        .unwrap_or_default();
 
                     println!(
-                        "  - Image [{}]: {} (asset_id {})",
-                        image.id, alt, image.asset_id
+                        "  - Image [{}]: {} (asset_id {}{})",
+                        image.id, alt, image.asset_id, fallback
                     );
                 }
 
@@ -444,7 +466,13 @@ fn resize_element_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut document = Document::open(&file)?;
 
-    core_resize_element(document.presentation_mut(), slide_id, element_id, width, height)?;
+    core_resize_element(
+        document.presentation_mut(),
+        slide_id,
+        element_id,
+        width,
+        height,
+    )?;
 
     document.save()?;
 
@@ -469,4 +497,3 @@ fn update_text_command(
 
     Ok(())
 }
-

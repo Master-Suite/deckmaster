@@ -71,14 +71,11 @@ impl SlideParser {
                         for attr in e.attributes() {
                             let attr = attr.unwrap();
 
-                            let key =
-                                String::from_utf8_lossy(attr.key.as_ref());
+                            let key = String::from_utf8_lossy(attr.key.as_ref());
 
-                            let value = String::from_utf8_lossy(
-                                attr.value.as_ref(),
-                            )
-                            .parse::<i64>()
-                            .unwrap_or(0);
+                            let value = String::from_utf8_lossy(attr.value.as_ref())
+                                .parse::<i64>()
+                                .unwrap_or(0);
 
                             match key.as_ref() {
                                 "x" => x = Some(emu_to_pt(value)),
@@ -92,14 +89,11 @@ impl SlideParser {
                         for attr in e.attributes() {
                             let attr = attr.unwrap();
 
-                            let key =
-                                String::from_utf8_lossy(attr.key.as_ref());
+                            let key = String::from_utf8_lossy(attr.key.as_ref());
 
-                            let value = String::from_utf8_lossy(
-                                attr.value.as_ref(),
-                            )
-                            .parse::<i64>()
-                            .unwrap_or(0);
+                            let value = String::from_utf8_lossy(attr.value.as_ref())
+                                .parse::<i64>()
+                                .unwrap_or(0);
 
                             match key.as_ref() {
                                 "cx" => width = Some(emu_to_pt(value)),
@@ -113,18 +107,15 @@ impl SlideParser {
                         for attr in e.attributes() {
                             let attr = attr.unwrap();
 
-                            let key =
-                                String::from_utf8_lossy(attr.key.as_ref());
+                            let key = String::from_utf8_lossy(attr.key.as_ref());
 
                             if key.as_ref() != "sz" {
                                 continue;
                             }
 
-                            let value = String::from_utf8_lossy(
-                                attr.value.as_ref(),
-                            )
-                            .parse::<f32>()
-                            .unwrap_or(1800.0);
+                            let value = String::from_utf8_lossy(attr.value.as_ref())
+                                .parse::<f32>()
+                                .unwrap_or(1800.0);
 
                             font_size = Some(value / 100.0);
                         }
@@ -134,17 +125,13 @@ impl SlideParser {
                         for attr in e.attributes() {
                             let attr = attr.unwrap();
 
-                            let key =
-                                String::from_utf8_lossy(attr.key.as_ref());
+                            let key = String::from_utf8_lossy(attr.key.as_ref());
 
                             if key.as_ref() != "val" {
                                 continue;
                             }
 
-                            let value = String::from_utf8_lossy(
-                                attr.value.as_ref(),
-                            )
-                            .to_string();
+                            let value = String::from_utf8_lossy(attr.value.as_ref()).to_string();
 
                             color = Some(format!("#{value}"));
                         }
@@ -152,10 +139,7 @@ impl SlideParser {
 
                     if is_tag(name.as_ref(), b"t") {
                         if let Ok(Event::Text(text)) = reader.read_event() {
-                            let value = String::from_utf8_lossy(
-                                text.as_ref(),
-                            )
-                            .to_string();
+                            let value = String::from_utf8_lossy(text.as_ref()).to_string();
 
                             if !text_value.is_empty() {
                                 text_value.push('\n');
@@ -178,9 +162,7 @@ impl SlideParser {
                                     height: height.unwrap_or(30.0),
                                 },
                                 font_size: font_size.unwrap_or(18.0),
-                                color: color
-                                    .clone()
-                                    .unwrap_or_else(|| "#000000".to_string()),
+                                color: color.clone().unwrap_or_else(|| "#000000".to_string()),
                             });
                         }
 
@@ -243,13 +225,9 @@ impl SlideParser {
                         for attr in e.attributes() {
                             let attr = attr.unwrap();
 
-                            let key =
-                                String::from_utf8_lossy(attr.key.as_ref());
+                            let key = String::from_utf8_lossy(attr.key.as_ref());
 
-                            let value = String::from_utf8_lossy(
-                                attr.value.as_ref(),
-                            )
-                            .to_string();
+                            let value = String::from_utf8_lossy(attr.value.as_ref()).to_string();
 
                             match key.as_ref() {
                                 "name" => name_value = Some(value),
@@ -265,16 +243,11 @@ impl SlideParser {
                         for attr in e.attributes() {
                             let attr = attr.unwrap();
 
-                            let key =
-                                String::from_utf8_lossy(attr.key.as_ref());
+                            let key = String::from_utf8_lossy(attr.key.as_ref());
 
                             if key.ends_with("embed") {
-                                relationship_id = Some(
-                                    String::from_utf8_lossy(
-                                        attr.value.as_ref(),
-                                    )
-                                    .to_string(),
-                                );
+                                relationship_id =
+                                    Some(String::from_utf8_lossy(attr.value.as_ref()).to_string());
                             }
                         }
                     }
@@ -283,14 +256,11 @@ impl SlideParser {
                         for attr in e.attributes() {
                             let attr = attr.unwrap();
 
-                            let key =
-                                String::from_utf8_lossy(attr.key.as_ref());
+                            let key = String::from_utf8_lossy(attr.key.as_ref());
 
-                            let value = String::from_utf8_lossy(
-                                attr.value.as_ref(),
-                            )
-                            .parse::<i64>()
-                            .unwrap_or(0);
+                            let value = String::from_utf8_lossy(attr.value.as_ref())
+                                .parse::<i64>()
+                                .unwrap_or(0);
 
                             match key.as_ref() {
                                 "x" => x = Some(emu_to_pt(value)),
@@ -304,14 +274,11 @@ impl SlideParser {
                         for attr in e.attributes() {
                             let attr = attr.unwrap();
 
-                            let key =
-                                String::from_utf8_lossy(attr.key.as_ref());
+                            let key = String::from_utf8_lossy(attr.key.as_ref());
 
-                            let value = String::from_utf8_lossy(
-                                attr.value.as_ref(),
-                            )
-                            .parse::<i64>()
-                            .unwrap_or(0);
+                            let value = String::from_utf8_lossy(attr.value.as_ref())
+                                .parse::<i64>()
+                                .unwrap_or(0);
 
                             match key.as_ref() {
                                 "cx" => width = Some(emu_to_pt(value)),
@@ -330,13 +297,8 @@ impl SlideParser {
                             Some(y),
                             Some(width),
                             Some(height),
-                        ) = (
-                            relationship_id.clone(),
-                            x,
-                            y,
-                            width,
-                            height,
-                        ) {
+                        ) = (relationship_id.clone(), x, y, width, height)
+                        {
                             images.push(ParsedImage {
                                 relationship_id,
                                 bounds: Rect {

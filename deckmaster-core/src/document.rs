@@ -73,7 +73,13 @@ impl Document {
 
         let mut slide = Slide::new(Some(title.into()));
 
-        slide.add_text(format!("Slide {}", slide_number), 100.0, 100.0, 500.0, 100.0);
+        slide.add_text(
+            format!("Slide {}", slide_number),
+            100.0,
+            100.0,
+            500.0,
+            100.0,
+        );
 
         self.package.presentation.slides.push(slide);
     }

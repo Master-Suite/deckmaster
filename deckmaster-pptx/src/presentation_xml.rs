@@ -5,13 +5,8 @@ pub struct PresentationXml {
 }
 
 impl PresentationXml {
-    pub fn load(
-        package: &mut Package,
-    ) -> Result<Self> {
-        let xml =
-            package.read_string(
-                "ppt/presentation.xml"
-            )?;
+    pub fn load(package: &mut Package) -> Result<Self> {
+        let xml = package.read_string("ppt/presentation.xml")?;
 
         Ok(Self { xml })
     }
