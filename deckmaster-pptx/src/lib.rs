@@ -7,6 +7,7 @@ pub mod presentation_xml;
 pub mod relationships;
 pub mod slide_parser;
 pub mod slide_xml;
+pub mod tex_export;
 pub mod units;
 
 use thiserror::Error;
@@ -20,6 +21,7 @@ pub use presentation_xml::*;
 pub use relationships::*;
 pub use slide_parser::*;
 pub use slide_xml::*;
+pub use tex_export::*;
 pub use units::*;
 
 #[derive(Debug, Error)]

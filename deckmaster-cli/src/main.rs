@@ -3,7 +3,9 @@ use deckmaster_core::{
     move_element as core_move_element, resize_element as core_resize_element,
     update_text as core_update_text, DeckPackage, Document, Element, Presentation, Severity, Slide,
 };
-use deckmaster_pptx::{EmbeddedJsonExporter, PptxExporter, PptxImporter};
+use deckmaster_pptx::{
+    EmbeddedJsonExporter, PptxExporter, PptxImporter, TexExportOptions, TexExporter,
+};
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -89,6 +91,21 @@ enum Commands {
         output: PathBuf,
     },
 
+    /// Export a .deckpkg/.zip to a TeX source package (main.tex + img/),
+    /// zipped. Compile with tectonic to get a high-fidelity PDF.
+    ExportTex {
+        input: PathBuf,
+        output: PathBuf,
+
+        /// Stamp the free-tier watermark on every slide. Omit for Pro output.
+        #[arg(long)]
+        watermark: bool,
+
+        /// Skip the Inter font package (falls back to the engine default sans).
+        #[arg(long)]
+        no_inter_font: bool,
+    },
+
     MoveElement {
         file: PathBuf,
         slide_id: Uuid,
@@ -131,6 +148,13 @@ fn main() {
         Commands::ImportPptx { input, output } => import_pptx(input, output),
         Commands::ExportPptx { input, output } => export_pptx(input, output),
         Commands::ExportEmbeddedJson { input, output } => export_embedded_json(input, output),
+
+        Commands::ExportTex {
+            input,
+            output,
+            watermark,
+            no_inter_font,
+        } => export_tex(input, output, watermark, no_inter_font),
 
         Commands::MoveElement {
             file,
@@ -235,6 +259,26 @@ fn export_embedded_json(input: PathBuf, output: PathBuf) -> Result<(), Box<dyn s
         "Embedded JSON exported to {} (one-way convenience export, not for re-import)",
         output.display()
     );
+
+    Ok(())
+}
+
+fn export_tex(
+    input: PathBuf,
+    output: PathBuf,
+    watermark: bool,
+    no_inter_font: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let package = DeckPackage::open(&input)?;
+
+    let options = TexExportOptions {
+        watermark: watermark.then(|| "Made with DeckMaster --- free export".to_string()),
+        use_inter_font: !no_inter_font,
+    };
+
+    TexExporter::export_zip(&package, &output, &options)?;
+
+    println!("TeX package exported to {}", output.display());
 
     Ok(())
 }
